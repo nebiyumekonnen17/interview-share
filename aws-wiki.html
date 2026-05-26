@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Service Wiki | Learning Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="text-slate-100 font-sans min-h-screen flex flex-col relative">
+
+    <div id="toast" class="fixed bottom-6 right-6 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-2xl transform translate-y-20 transition-all duration-500 hidden z-[100]">
+        <i class="fa-solid fa-check-circle mr-2"></i> Service successfully added!
+    </div>
+
+    <header class="glass-panel border-b border-slate-800 py-4 shadow-lg sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 flex justify-between items-center w-full">
+            <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-book-open text-indigo-400"></i> AWS Service Wiki
+            </h1>
+            <a href="index.html" class="text-xs font-bold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Main Menu
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-6 py-10 flex-grow relative z-10">
+        <div class="mb-8">
+            <div class="flex gap-4">
+                <input type="text" id="search" placeholder="Search by Service Name..." class="flex-grow glass-input px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/50">
+                <button onclick="toggleModal(true, 'add')" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-xl font-bold transition-all cursor-pointer">
+                    <i class="fa-solid fa-plus mr-2"></i> Add Service
+                </button>
+            </div>
+            <div id="results-count" class="text-xs text-slate-500 font-medium mt-3 ml-1 h-4 italic"></div>
+        </div>
+
+        <div id="wiki-grid" class="grid grid-cols-1 gap-6">
+            <p class="text-center text-slate-500 py-10">Initializing database...</p>
+        </div>
+
+        <div id="load-more-container" class="mt-10 text-center hidden">
+            <button onclick="loadMore()" class="bg-slate-800 hover:bg-slate-700 px-8 py-3 rounded-full text-sm font-bold transition-all cursor-pointer">Load More Results</button>
+        </div>
+    </main>
+
+    <div id="modal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+        <div class="glass-panel w-full max-w-2xl p-8 rounded-3xl shadow-2xl my-auto">
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://arhyahuaohebaaatjhwn.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyaHlhaHVhb2hlYmFhYXRqaHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDYyNzgsImV4cCI6MjA5NDY4MjI3OH0.NvRDjDDZcI7u-Go0KnP8dvEyuPWT4ar4hPU6lfc5qIs";
+        const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"; 
+        window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let offset = 0; const limit = 20; let currentQuery = '';
+
+        async function loadWiki(query = '', append = false) {
+            currentQuery = query;
+            let queryBuilder = window.sb.from('aws_services').select('*', { count: 'exact' });
+            if (query) queryBuilder = queryBuilder.ilike('service_name', `%${query}%`);
+            const { data, count } = await queryBuilder.range(offset, offset + limit - 1);
+            document.getElementById('results-count').innerText = count ? `Found ${count} services.` : '';
+            const grid = document.getElementById('wiki-grid');
+            if (!append) grid.innerHTML = '';
+            data.forEach(s => {
+                grid.innerHTML += `
+                    <div onclick="showDetails('${s.service_name}')" class="service-card glass-panel p-6 rounded-2xl border-l-4 border-indigo-500 hover:border-indigo-400 cursor-pointer transition-all">
+                        <h3 class="text-xl font-bold">${s.service_name} <span class="text-xs text-indigo-400 bg-indigo-950 px-2 py-0.5 rounded">${s.category}</span></h3>
+                        <p class="text-sm text-slate-300 mt-2">${s.summary}</p>
+                        <p class="text-[10px] text-slate-500 mt-4 italic">— Contributed by ${s.contributor}</p>
+                    </div>`;
+            });
+            document.getElementById('load-more-container').classList.toggle('hidden', (offset + limit) >= count);
+        }
+
+        async function showDetails(name) {
+            toggleModal(true, 'details');
+            const cont = document.getElementById('modal-content');
+            cont.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `Provide detailed explanation of AWS ${name}. Include official image URL and YouTube video ID. Format as JSON: {"explanation": "...", "image": "...", "video_id": "..."}` }] }] })
+                });
+                const data = await res.json();
+                const info = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json|```/g, ''));
+                cont.innerHTML = `
+                    <img src="${info.image}" class="w-full h-48 object-contain mb-4">
+                    <h2 class="text-2xl font-bold mb-2">${name}</h2>
+                    <p class="text-sm mb-4 leading-relaxed">${info.explanation}</p>
+                    <iframe class="w-full h-64 rounded-xl" src="https://www.youtube.com/embed/${info.video_id}"></iframe>
+                    <button onclick="toggleModal(false)" class="mt-6 w-full p-3 bg-slate-800 rounded-xl font-bold">Close</button>`;
+            } catch (e) { cont.innerHTML = "Details unavailable."; }
+        }
+
+        window.toggleModal = (show, type) => {
+            document.getElementById('modal').classList.toggle('hidden', !show);
+            if (type === 'add') {
+                document.getElementById('modal-content').innerHTML = `
+                    <h2 class="text-2xl font-bold mb-6">Contribute</h2>
+                    <form id="wiki-form" class="space-y-4">
+                        <input type="text" id="sn" placeholder="Name" required class="w-full glass-input p-3 rounded-lg bg-slate-900 border border-slate-700">
+                        <input type="text" id="cat" placeholder="Category" required class="w-full glass-input p-3 rounded-lg bg-slate-900 border border-slate-700">
+                        <textarea id="sum" placeholder="Summary" required class="w-full glass-input p-3 rounded-lg h-24 bg-slate-900 border border-slate-700"></textarea>
+                        <textarea id="got" placeholder="Gotcha!" required class="w-full glass-input p-3 rounded-lg h-24 bg-slate-900 border border-slate-700"></textarea>
+                        <input type="text" id="con" placeholder="Your Name" required class="w-full glass-input p-3 rounded-lg bg-slate-900 border border-slate-700">
+                        <button type="submit" class="w-full bg-indigo-600 p-3 rounded-lg font-bold hover:bg-indigo-700 transition-all">Submit</button>
+                    </form>`;
+                document.getElementById('wiki-form').onsubmit = async (e) => {
+                    e.preventDefault();
+                    await window.sb.from('aws_services').insert([{ service_name: document.getElementById('sn').value, category: document.getElementById('cat').value, summary: document.getElementById('sum').value, gotcha: document.getElementById('got').value, contributor: document.getElementById('con').value }]);
+                    toggleModal(false); showToast(); offset = 0; loadWiki();
+                };
+            }
+        };
+
+        function showToast() { const t = document.getElementById('toast'); t.classList.remove('hidden', 'translate-y-20'); setTimeout(() => { t.classList.add('translate-y-20'); setTimeout(() => t.classList.add('hidden'), 500); }, 3000); }
+        let debounceTimer; document.getElementById('search').oninput = (e) => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { offset = 0; loadWiki(e.target.value, false); }, 300); };
+        function loadMore() { offset += limit; loadWiki(currentQuery, true); }
+        loadWiki();
+    </script>
+</body>
+</html>

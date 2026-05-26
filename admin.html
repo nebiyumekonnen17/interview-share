@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel | Exam Prep Hub</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="p-8">
+    <main class="max-w-2xl mx-auto glass-panel p-8 rounded-2xl">
+        <h1 class="text-2xl font-bold mb-6">Add New Question</h1>
+        <div class="space-y-4">
+            <input id="q-text" placeholder="Question" class="w-full p-3 glass-input rounded-xl">
+            <input id="q-options" placeholder="Options (comma separated)" class="w-full p-3 glass-input rounded-xl">
+            <input id="q-correct" placeholder="Correct index (0, 1, 2...)" class="w-full p-3 glass-input rounded-xl">
+            <input id="q-category" placeholder="Domain (e.g. Technology)" class="w-full p-3 glass-input rounded-xl">
+            <textarea id="q-explanation" placeholder="Explanation" class="w-full p-3 glass-input rounded-xl"></textarea>
+            <button onclick="saveQuestion()" class="w-full py-3 bg-indigo-600 rounded-lg font-bold">Save to Database</button>
+        </div>
+    </main>
+
+    <script>
+        const supabase = supabase.createClient("https://arhyahuaohebaaatjhwn.supabase.co", "YOUR_SERVICE_ROLE_KEY_HERE");
+
+        async function saveQuestion() {
+            const question = {
+                question: document.getElementById('q-text').value,
+                options: document.getElementById('q-options').value.split(','),
+                correct_answer_index: parseInt(document.getElementById('q-correct').value),
+                category: document.getElementById('q-category').value,
+                explanation: document.getElementById('q-explanation').value
+            };
+
+            const { data, error } = await supabase.from('aws_quiz_questions').insert([question]);
+            if (error) alert("Error: " + error.message);
+            else alert("Question added successfully!");
+        }
+    </script>
+</body>
+</html>
