@@ -39,9 +39,10 @@
     </div>
 
     <script>
+        // Ensure these match your actual Supabase cloud project
         const SUPABASE_URL = "https://arhyahuaohebaaatjhwn.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyaHlhaHVhb2hlYmFhYXRqaHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDYyNzgsImV4cCI6MjA5NDY4MjI3OH0.NvRDjDDZcI7u-Go0KnP8dvEyuPWT4ar4hPU6lfc5qIs";
-        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const SUPABASE_ANON_KEY = "YOUR_ANON_KEY_HERE"; // Use your project's public key
+        const sb = supabase.createClient(https://arhyahuaohebaaatjhwn.supabase.co/rest/v1/, eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyaHlhaHVhb2hlYmFhYXRqaHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDYyNzgsImV4cCI6MjA5NDY4MjI3OH0.NvRDjDDZcI7u-Go0KnP8dvEyuPWT4ar4hPU6lfc5qIs);
 
         async function loadWiki(query = '') {
             const grid = document.getElementById('wiki-grid');
@@ -60,7 +61,7 @@
             const modal = document.getElementById('modal');
             const cont = document.getElementById('modal-content');
             modal.classList.remove('hidden');
-            cont.innerHTML = '<p class="text-center">Asking AI...</p>';
+            cont.innerHTML = '<p class="text-center"><i class="fa-solid fa-spinner fa-spin"></i> Asking AI...</p>';
             
             try {
                 const { data, error } = await sb.functions.invoke('gemini-proxy', {
@@ -68,9 +69,7 @@
                 });
 
                 if (error) throw error;
-                
-                const responseText = data.candidates[0].content.parts[0].text;
-                const info = JSON.parse(responseText.replace(/```json|```/g, ''));
+                const info = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json|```/g, ''));
                 
                 cont.innerHTML = `
                     <h2 class="text-2xl font-bold mb-4">${name}</h2>
@@ -79,8 +78,7 @@
                     <iframe class="w-full h-64 rounded-xl" src="https://www.youtube.com/embed/${info.video_id}"></iframe>
                     <button onclick="document.getElementById('modal').classList.add('hidden')" class="mt-6 w-full p-3 bg-indigo-600 rounded-xl font-bold">Close</button>`;
             } catch (e) {
-                console.error(e);
-                cont.innerHTML = `<p class="text-red-400">Error fetching details. Check your API Key configuration in Supabase.</p>`;
+                cont.innerHTML = `<p class="text-red-400">Error: ${e.message}</p>`;
             }
         }
 
